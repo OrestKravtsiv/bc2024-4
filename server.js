@@ -13,14 +13,48 @@ program
 //створив змінні для параметрів аргументів
 const options = program.opts();
 
-const requestListener = function (req, res) {
-    res.writeHead(200, { 'Content-Type': 'text/plain' });
-    res.end('Hello, world!');
+async function handleGetRequest(res, cacheFilePath) {
+    try {
+        const data = await fs.readFile(cacheFilePath);
+        res.writeHead(200, { 'Content-Type': 'image/jpeg' });
+        res.end(data);
+    } catch (error) {
+        if (error.code === 'ENOENT') {
+            res.writeHead(404, { 'Content-Type': 'text/plain' });
+            res.end('Not Found');
+        } else {
+            throw error;
+        }
+    }
+}
+
+
+
+const requestListener = async function (req, res) {
+    const urlPath = req.url.slice(1);
+    const cacheFilePath = path.join('cache', `${urlPath}.jpg`);
+
+    try {
+        if (req.method === 'GET') {
+            await handleGetRequest(res, cacheFilePath);
+        } else if (req.method === 'PUT') {
+            await handlePutRequest(req, res, cacheFilePath);
+        } else if (req.method === 'DELETE') {
+            await handleDeleteRequest(res, cacheFilePath);
+        } else {
+            res.writeHead(405, { 'Content-Type': 'text/plain' });
+            res.end('Method Not Allowed');
+        }
+    } catch (error) {
+        console.error('Error handling request:', error);
+        res.writeHead(500, { 'Content-Type': 'text/plain' });
+        res.end('Internal Server Error');
+    }
 }
 
 const server = http.createServer(requestListener);
 
 server.listen(options.port, options.host, () => {
-    console.log(`Server running at http://${host}:${port}/`);
+    console.log(`Server running at http://${options.host}:${options.port}/`);
 });
 
